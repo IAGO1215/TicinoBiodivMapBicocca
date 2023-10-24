@@ -32,7 +32,6 @@ The last step is to validate the calculation results based on the ground truth d
 ## Folder structure: 
 
 ```
-
 root
 ├── FieldData
 │   ├── Sintesi_siti_ParcoTicino_con_specie.xlsx
@@ -41,12 +40,22 @@ root
 │   │   ├──confini_foreste_finale.shp
 │   ├── ShapefileCorretti
 │   │   ├──confini_foreste_corretti.shp
+│   ├── ShapefileCorretti
+│   │   ├──confini_prova.shp
 │   ├── Scheda di Campo
 ├── ProcessedData
-│   ├──
+│   ├── 2022 06
+│   │   ├──2022 06.hdr
+│   │   ├──2022 06Cropped.hdr
+│   │   ├──2022 06Mask.hdr
+│   ├── 2022 09
 ├── Python
 ├── R
 ├── RawData
+│   ├── 2022 06
+│   ├── 2022 09
 ├── Results
+│   ├── 2022 06Cropped
+│   ├── 2022 09Cropped
 ```
 
