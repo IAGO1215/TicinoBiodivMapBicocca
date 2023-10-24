@@ -80,3 +80,49 @@ print("----PERFORMING PCA SUCCESSFULLY----")
 
 print("----MANUALLY SELECTING PCs----")
 selected_PCs <- c(1,2,3,4)
+
+### Spectral Species ###
+print("----COMPUTING SPECTRAL SPECIES----")
+
+counter <- 1
+list_spectral <- list()
+for (x in 1:length(subdir_prodata)){
+  Kmeans_info <- biodivMapR::map_spectral_species(Input_Image_File = path_raster[[x]],
+                                                  Input_Mask_File = path_mask[[x]],
+                                                  Output_Dir = outDir,
+                                                  SpectralSpace_Output = list_PCA[[count]],
+                                                  SelectedPCs = selected_PCs,
+                                                  nbclusters = nbClusters,
+                                                  nbCPU = nbCPU, 
+                                                  MaxRAM = MaxRAM)
+  print(paste0('Spectral species generated for ',path_raster[[x]]))
+  list_spectral <- append(list_spectral, Kmeans_info)
+  counter <- counter + 1
+}
+
+print("----SPECTRAL SPECIES COMPUTED----")
+
+### Alpha Beta Diversity ###
+print("----MAP ALPHA DIVERSITY----")
+# Index.Alpha   = c('Shannon','Simpson')
+Index_Alpha <- c('Shannon')
+
+map_alpha_div(Input_Image_File = my_Raster,
+              Input_Mask_File = my_mask,
+              Output_Dir = outDir,
+              TypePCA = typePCA,
+              window_size = window_size,
+              nbCPU = nbCPU,
+              MaxRAM = MaxRAM,
+              Index_Alpha = Index_Alpha,
+              nbclusters = nbClusters)
+
+print("----MAP BETA DIVERSITY----")
+map_beta_div(Input_Image_File = my_Raster,
+             Output_Dir = outDir,
+             TypePCA = typePCA,
+             window_size = window_size,
+             nbCPU = nbCPU,
+             MaxRAM = MaxRAM,
+             nbclusters = nbClusters)
+print("----BETA DIVERSITY COMPUTED----")
