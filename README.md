@@ -19,7 +19,7 @@ The last step is to validate the calculation results based on the ground truth d
 1. Numpy
 2. Pandas
 3. GeoPandas
-4. Rasterio (and osgeo)
+4. Rasterio (and osgeo, which is currently mandatory in order to successfully import the rasterio package.)
 5. Matplotlib
 
 ## Folder structure: 
