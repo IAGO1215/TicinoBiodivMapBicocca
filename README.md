@@ -22,11 +22,31 @@ The last step is to validate the calculation results based on the ground truth d
 4. Rasterio (and osgeo, which is currently mandatory in order to successfully import the rasterio package.)
 5. Matplotlib
 
+## Required R Packages
+
+1. tools
+2. raster
+3. preprocS2
+4. biodivMapR
+
 ## Folder structure: 
 
 ```
 
 root
-
+├── FieldData
+│   ├── Sintesi_siti_ParcoTicino_con_specie.xlsx
+│   ├── fieldplots.shp
+│   ├── Shapefile
+│   │   ├──confini_foreste_finale.shp
+│   ├── ShapefileCorretti
+│   │   ├──confini_foreste_corretti.shp
+│   ├── Scheda di Campo
+├── ProcessedData
+│   ├──
+├── Python
+├── R
+├── RawData
+├── Results
 ```
 
