@@ -1,5 +1,5 @@
 ### This R script is aimed at calculating the alpha and beta biodiversity indices from the Sentinel-2 raster data ###
-### The workflow is: import raster -> calculate PCA and select PCs -> calculate spectral species -> calculate alpha and beta ###
+### The workflow is: import rasters in different subfolders -> calculate PCA and select PCs -> calculate spectral species -> calculate alpha and beta ###
 
 # Clean environment
 rm(list=ls(all=TRUE));gc()
@@ -73,7 +73,7 @@ for (x in 1:length(subdir_prodata)){
                                         Continuum_Removal = continuum_Removal, 
                                         Excluded_WL = spectral_excluded)
   print(paste0('PCA generated for ',path_raster[[x]]))
-  list_PCA <- append(list_PCA, PCA_Output)
+  list_PCA <- append(list_PCA, list(PCA_Output))
 }
 
 print("----PERFORMING PCA SUCCESSFULLY----")
@@ -81,23 +81,33 @@ print("----PERFORMING PCA SUCCESSFULLY----")
 print("----MANUALLY SELECTING PCs----")
 selected_PCs <- c(1,2,3,4)
 
+## TTTTTTTTTTEST
+library(raster)
+mask1 <- raster(path_mask[[1]])
+Mask <- stars::read_stars(path_mask[[1]], proxy = F)
+ncols <- as.integer(ncol(mask1))
+nrows <- as.integer(nrow(mask1))
+HDR <- read_ENVI_header(get_HDR_name(path_raster[[1]]))
+!ncols == HDR$samples | !nrows == HDR$lines
+ncols == HDR$samples & nrows == HDR$lines
+
 ### Spectral Species ###
 print("----COMPUTING SPECTRAL SPECIES----")
 
-counter <- 1
+library(raster)
+source(file.path(path_abs,'R','Updated_Functions.R'))
 list_spectral <- list()
 for (x in 1:length(subdir_prodata)){
-  Kmeans_info <- biodivMapR::map_spectral_species(Input_Image_File = path_raster[[x]],
+  Kmeans_info <- biodivMapR::map_spectral_species_py(Input_Image_File = path_raster[[x]],
                                                   Input_Mask_File = path_mask[[x]],
                                                   Output_Dir = outDir,
-                                                  SpectralSpace_Output = list_PCA[[count]],
+                                                  SpectralSpace_Output = list_PCA[[x]],
                                                   SelectedPCs = selected_PCs,
                                                   nbclusters = nbClusters,
                                                   nbCPU = nbCPU, 
                                                   MaxRAM = MaxRAM)
   print(paste0('Spectral species generated for ',path_raster[[x]]))
-  list_spectral <- append(list_spectral, Kmeans_info)
-  counter <- counter + 1
+  list_spectral <- append(list_spectral, list(Kmeans_info))
 }
 
 print("----SPECTRAL SPECIES COMPUTED----")
@@ -107,22 +117,44 @@ print("----MAP ALPHA DIVERSITY----")
 # Index.Alpha   = c('Shannon','Simpson')
 Index_Alpha <- c('Shannon')
 
-map_alpha_div(Input_Image_File = my_Raster,
-              Input_Mask_File = my_mask,
-              Output_Dir = outDir,
-              TypePCA = typePCA,
-              window_size = window_size,
-              nbCPU = nbCPU,
-              MaxRAM = MaxRAM,
-              Index_Alpha = Index_Alpha,
-              nbclusters = nbClusters)
+for (x in 1:length(subdir_prodata)){
+  biodivMapR::map_alpha_div(Input_Image_File = path_raster[[x]],
+                Input_Mask_File = path_mask[[x]],
+                Output_Dir = outDir,
+                TypePCA = typePCA,
+                window_size = window_size,
+                nbCPU = nbCPU,
+                MaxRAM = MaxRAM,
+                Index_Alpha = Index_Alpha,
+                nbclusters = nbClusters)
+  print(paste0('Alpha diversity map generated for ',path_raster[[x]]))
+}
 
 print("----MAP BETA DIVERSITY----")
-map_beta_div(Input_Image_File = my_Raster,
-             Output_Dir = outDir,
-             TypePCA = typePCA,
-             window_size = window_size,
-             nbCPU = nbCPU,
-             MaxRAM = MaxRAM,
-             nbclusters = nbClusters)
+for (x in 1:length(subdir_prodata)){
+  biodivMapR::map_beta_div(Input_Image_File = path_raster[[x]],
+               Output_Dir = outDir,
+               TypePCA = typePCA,
+               window_size = window_size,
+               nbCPU = nbCPU,
+               MaxRAM = MaxRAM,
+               nbclusters = nbClusters)
+  print(paste0('Beta diversity map generated for ',path_raster[[x]]))
+}
+
 print("----BETA DIVERSITY COMPUTED----")
+
+### Field Splot Biodiversity ###
+
+print("----FIELD PLOT STEP----")
+# location of the directory where shapefiles used for validation are saved
+vector_Dir <- file.path(path_abs,"FieldData","FieldPlotsPolygon")
+# list vector data (In our case, there is only one shapefile, so alternatively we can directly input its abs path)
+vector_Path <- biodivMapR::list_shp(vector_Dir)
+vector_Name <- tools::file_path_sans_ext(basename(vector_Path))
+
+Biodiv_Indicators <- biodivMapR::diversity_from_plots(Raster_SpectralSpecies = list_spectral$SpectralSpecies, 
+                                          Plots = vector_Path,
+                                          nbclusters = nbClusters, 
+                                          Raster_Functional = list_PCA[[1]]$PCA_Files, 
+                                          Selected_Features = selected_PCs)
