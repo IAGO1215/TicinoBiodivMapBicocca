@@ -15,27 +15,29 @@ print("----LOADING INPUT SATELLITE IMAGE FILES----")
 
 # Importing raster files
 # The raw data folder
-dir_prodata <- file.path(path_abs, 'ProcessedData')
+dir_Sentinel <- file.path(path_abs, 'ProcessedData')
 # Get the names of all the subfolders
-name_prodata <- list.dirs(dir_prodata, full.name = FALSE, recursive = FALSE)
+name_Sentinel <- list.dirs(dir_Sentinel, full.name = FALSE, recursive = FALSE)
 # Get all the subfolders in our "ProcessedData" folder
-subdir_prodata <- list.dirs(dir_prodata, recursive = FALSE)
+subdir_Sentinel <- list.dirs(dir_Sentinel, recursive = FALSE)
 # Get the paths to all the raster files! 
-path_raster <- list()
-for (x in 1:length(subdir_prodata)) {
-  temp <- file.path(subdir_prodata[x], paste0(name_prodata[x],'Cropped'))
+path_Sentinel_Raster <- list()
+for (x in 1:length(subdir_Sentinel)) {
+  temp <- file.path(subdir_Sentinel[x], paste0(name_Sentinel[x],'Cropped'))
   print(temp)
-  path_raster <- append(path_raster, temp)
+  path_Sentinel_Raster <- append(path_Sentinel_Raster, temp)
+  rm(temp)
 }
 # Mask paths
-path_mask <- list()
-for (x in 1:length(subdir_prodata)) {
-  temp <- file.path(subdir_prodata[x], paste0(name_prodata[x],'Mask'))
+path_Sentinel_Mask <- list()
+for (x in 1:length(subdir_Sentinel)) {
+  temp <- file.path(subdir_Sentinel[x], paste0(name_Sentinel[x],'Mask'))
   print(temp)
-  path_mask <- append(path_mask, temp)
+  path_Sentinel_Mask <- append(path_Sentinel_Mask, temp)
+  rm(temp)
 }
 # Output directory (No need to create the subfolders on our own since biodiverR will create them automatically)
-outDir <- file.path(path_abs,'Results')
+outDir_Sentinel <- file.path(path_abs,'Results')
 
 ### Setting parameters ###
 
@@ -48,12 +50,12 @@ typePCA <- 'SPCA'
 # Automatically set to FALSE if TypePCA     = 'MNF'
 filterPCA <- FALSE
 # window size forcomputation of spectral diversity
-window_size <- list(5,10)
+window_size_Sentinel <- 5
 # computational parameters
 nbCPU <- 4
 MaxRAM <- 0.2
 # number of clusters (spectral species)
-nbClusters <- list(20,35,50)
+nbClusters_Sentinel <- 20
 # spectral filtering - for our case, we don't need any spectrals to be excluded
 spectral_excluded <- NULL
 
@@ -61,52 +63,46 @@ spectral_excluded <- NULL
 
 print("----PERFORMING PCA----")
 
-list_PCA <- list()
-for (x in 1:length(subdir_prodata)){
-  PCA_Output <- biodivMapR::perform_PCA(Input_Image_File = path_raster[[x]],
-                                        Output_Dir = file.path(outDir,"PCA"),
-                                        Input_Mask_File = path_mask[[x]],
+list_PCASentinel <- list()
+for (x in 1:length(subdir_Sentinel)){
+  temp_PCA <- biodivMapR::perform_PCA(Input_Image_File = path_Sentinel_Raster[[x]],
+                                        Output_Dir = outDir_Sentinel,
+                                        Input_Mask_File = path_Sentinel_Mask[[x]],
                                         TypePCA = typePCA,
                                         FilterPCA = filterPCA,
                                         nbCPU = nbCPU,
                                         MaxRAM = MaxRAM,
                                         Continuum_Removal = continuum_Removal, 
                                         Excluded_WL = spectral_excluded)
-  print(paste0('PCA generated for ',path_raster[[x]]))
-  list_PCA <- append(list_PCA, list(PCA_Output))
+  print(paste0('PCA generated for ',path_Sentinel_Raster[[x]]))
+  list_PCASentinel <- append(list_PCASentinel, list(temp_PCA))
+  rm(temp_PCA)
 }
 
 print("----PERFORMING PCA SUCCESSFULLY----")
 
 print("----MANUALLY SELECTING PCs----")
-selected_PCs <- c(1,2,3,4)
+pc_sel_Sentinel <- c(1,2,3,4,5)
 
 ### Spectral Species ###
 print("----COMPUTING SPECTRAL SPECIES----")
 
-output_Path_Cluster <- list()
-for (x in 1:length(nbClusters)){
-  output_Path_Cluster <- append(output_Path_Cluster,file.path(outDir, paste0(nbClusters[[x]],'Clusters')))
-}
-
 library(raster)
 source(file.path(path_abs,'R','Updated_Functions.R'))
-list_spectral <- list()
-for (x in 1:length(subdir_prodata)){
-  list_spectral_temp <- list()
-  for (y in 1:length(nbClusters)){
-    Kmeans_info <- map_spectral_species_py(Input_Image_File = path_raster[[x]],
-                                                       Input_Mask_File = path_mask[[x]],
-                                                       Output_Dir = output_Path_Cluster[[y]],
-                                                       SpectralSpace_Output = list_PCA[[x]],
-                                                       SelectedPCs = selected_PCs,
-                                                       nbclusters = nbClusters[[y]],
-                                                       nbCPU = nbCPU, 
-                                                       MaxRAM = MaxRAM)
-    print(paste0('Spectral species generated for ',path_raster[[x]],' cluster ',nbClusters[[y]]))
-    list_spectral_temp <- append(list_spectral_temp, list(Kmeans_info))
-  }
-  list_spectral <- append(list_spectral, list(list_spectral_temp))
+
+list_spectral_Sentinel <- list()
+for (x in 1:length(subdir_Sentinel)){
+  Kmeans_info <- map_spectral_species_py(Input_Image_File = path_Sentinel_Raster[[x]],
+                                                     Input_Mask_File = path_Sentinel_Mask[[x]],
+                                                     Output_Dir = outDir_Sentinel,
+                                                     SpectralSpace_Output = list_PCASentinel[[x]],
+                                                     SelectedPCs = pc_sel_Sentinel,
+                                                     nbclusters = nbClusters_Sentinel,
+                                                     nbCPU = nbCPU, 
+                                                     MaxRAM = MaxRAM)
+  print(paste0('Spectral species generated for ',path_Sentinel_Raster[[x]]))
+  list_spectral_Sentinel <- append(list_spectral_Sentinel, list(Kmeans_info))
+  rm(Kmeans_info)
 }
 
 print("----SPECTRAL SPECIES COMPUTED----")
@@ -116,42 +112,34 @@ print("----MAP ALPHA DIVERSITY----")
 # Index.Alpha   = c('Shannon','Simpson')
 Index_Alpha <- c('Shannon')
 
-for (x in 1:length(subdir_prodata)){
-  for (y in 1:length(nbClusters)){
-    for (z in 1:length(window_size)){
-      biodivMapR::map_alpha_div(Input_Image_File = path_raster[[x]],
-                    Input_Mask_File = path_mask[[x]],
-                    Output_Dir = output_Path_Cluster[[y]],
-                    TypePCA = typePCA,
-                    window_size = window_size[[z]],
-                    nbCPU = nbCPU,
-                    MaxRAM = MaxRAM,
-                    Index_Alpha = Index_Alpha,
-                    nbclusters = nbClusters[[y]])
-      print(paste0('Alpha diversity map generated for ',path_raster[[x]],' Cluster ',output_Path_Cluster[[y]],' Window ',window_size[[z]]))
-    }
-  }
+for (x in 1:length(subdir_Sentinel)){
+  biodivMapR::map_alpha_div(Input_Image_File = path_Sentinel_Raster[[x]],
+                Input_Mask_File = path_Sentinel_Mask[[x]],
+                Output_Dir = outDir_Sentinel,
+                TypePCA = typePCA,
+                window_size = window_size_Sentinel,
+                nbCPU = nbCPU,
+                MaxRAM = MaxRAM,
+                Index_Alpha = Index_Alpha,
+                nbclusters = nbClusters_Sentinel)
+  print(paste0('Alpha diversity map generated for ',path_Sentinel_Raster[[x]]))
 }
 
 print("----MAP BETA DIVERSITY----")
-for (x in 1:length(subdir_prodata)){
-  for (y in 1:length(nbClusters)){
-    for (z in 1:length(window_size)){
-      biodivMapR::map_beta_div(Input_Image_File = path_raster[[x]],
-                   Output_Dir = output_Path_Cluster[[y]],
-                   TypePCA = typePCA,
-                   window_size = window_size[[z]],
-                   nbCPU = nbCPU,
-                   MaxRAM = MaxRAM,
-                   nbclusters = nbClusters[[y]])
-      print(paste0('Beta diversity map generated for ',path_raster[[x]]))
-    }
-  }
+for (x in 1:length(subdir_Sentinel)){
+  biodivMapR::map_beta_div(Input_Image_File = path_Sentinel_Raster[[x]],
+               Output_Dir = outDir_Sentinel,
+               TypePCA = typePCA,
+               window_size = window_size_Sentinel,
+               nbCPU = nbCPU,
+               MaxRAM = MaxRAM,
+               nbclusters = nbClusters_Sentinel)
+  print(paste0('Beta diversity map generated for ',path_Sentinel_Raster[[x]]))
 }
 
 print("----BETA DIVERSITY COMPUTED----")
 
-### Field Splot Biodiversity ###
+### Field Plot Biodiversity ###
 
 print("----FIELD PLOT STEP----")
 # Get the name for all the plot
