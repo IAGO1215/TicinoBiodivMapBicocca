@@ -1,6 +1,7 @@
 library(raster)
 library(biodivMapR)
 library(tools)
+library(progress)
 
 map_spectral_species_py <- function (Input_Image_File, Output_Dir, SpectralSpace_Output, 
           Input_Mask_File = FALSE, nbclusters = 50, nbCPU = 1, MaxRAM = 0.25, 
@@ -84,14 +85,17 @@ map_spectral_species_py <- function (Input_Image_File, Output_Dir, SpectralSpace
     nb_partitions <- SpectralSpace_Output$nb_partitions
   }
   Pix_Per_Partition <- define_pixels_per_iter(ImNames, nb_partitions = nb_partitions)
+  message("Partition!")
   ImPathHDR <- get_HDR_name(SpectralSpace_Output$PCA_Files)
   HDR <- read_ENVI_header(ImPathHDR)
+  message("HDR Read!")
   Subset <- get_random_subset_from_image(ImPath = SpectralSpace_Output$PCA_Files, 
                                          MaskPath = Input_Mask_File, nb_partitions = nb_partitions, 
                                          Pix_Per_Partition = Pix_Per_Partition, kernel = NULL, 
                                          MaxRAM = MaxRAM)
   SubsetInit <- Subset
   dataPCA <- Subset$DataSubset[, PC_Select]
+  message("Subset!")
   if (length(PC_Select) == 1) {
     dataPCA <- matrix(dataPCA, ncol = 1)
   }
@@ -160,5 +164,175 @@ check_update_mask_format_py <- function (Input_Mask_File, Input_Image_File)
   rm(Mask)
   gc()
   return(MaskPath_Update)
+}
+
+diversity_from_plots_nofunc <- function (Raster_SpectralSpecies, Plots, nbclusters = 50, Raster_Functional = FALSE, 
+          Selected_Features = FALSE, Name_Plot = FALSE, Hellinger = FALSE, 
+          pcelim = 0.02) 
+{
+  HDR <- read_ENVI_header(paste(Raster_SpectralSpecies, ".hdr", 
+                                sep = ""))
+  nbRepetitions <- HDR$bands
+  nbPlots <- length(Plots)
+  Richness.AllRep <- Shannon.AllRep <- Fisher.AllRep <- Simpson.AllRep <- list()
+  Richness <- Shannon <- Fisher <- Simpson <- data.frame()
+  Raster <- terra::rast(Raster_SpectralSpecies, lyrs = 1)
+  XY <- list()
+  for (ip in 1:nbPlots) {
+    vector_file <- Plots[[ip]]
+    if (file.exists(vector_file)) {
+      Plot <- terra::vect(vector_file)
+      if (!terra::same.crs(Raster, Plot)) 
+        Plot <- terra::project(x = Plot, y = Raster)
+    }
+    else {
+      print(paste(vector_file, "cannot be found"))
+    }
+    XY0 <- extract_pixels_coordinates(x = Raster, y = Plot)
+    XY <- c(XY, XY0)
+  }
+  nbPolygons <- length(XY)
+  message(paste("Number of validation plots : ", nbPolygons))
+  Pixel_Inventory_All <- Pixel_Hellinger_All <- list()
+  pb <- progress::progress_bar$new(format = "computing alpha diversity [:bar] :percent in :elapsed", 
+                         total = nbPolygons, clear = FALSE, width = 100)
+  for (ip in 1:nbPolygons) {
+    pb$tick()
+    if (all(is.na(XY[[ip]]$col))) {
+      if (length(Name_Plot) == nbPolygons) {
+        message(paste("Polygon named", Name_Plot[ip], 
+                      "is out of the raster"))
+        Name_Plot[ip] <- NA
+      }
+      Richness <- rbind(Richness, NA, row.names = NULL, 
+                        col.names = NULL)
+      Fisher <- rbind(Fisher, NA, row.names = NULL, col.names = NULL)
+      Shannon <- rbind(Shannon, NA, row.names = NULL, 
+                       col.names = NULL)
+      Simpson <- rbind(Simpson, NA, row.names = NULL, 
+                       col.names = NULL)
+    }
+    else {
+      ExtractIm <- extract.big_raster(Raster_SpectralSpecies, 
+                                      XY[[ip]])
+      if (length(XY[[ip]]$col) == 1) {
+        ExtractIm <- matrix(ExtractIm, ncol = nbRepetitions)
+      }
+      Pixel_Inventory <- Pixel_Hellinger <- list()
+      Richness.tmp <- Shannon.tmp <- Fisher.tmp <- Simpson.tmp <- vector(length = nbRepetitions)
+      for (i in 1:nbRepetitions) {
+        if (nbRepetitions == 1) {
+          Distritab <- table(ExtractIm)
+        }
+        else {
+          Distritab <- table(ExtractIm[, i])
+        }
+        Pixel_Inventory[[i]] <- as.data.frame(Distritab)
+        if (length(which(Pixel_Inventory[[i]]$Var1 == 
+                         0)) == 1) {
+          Pixel_Inventory[[i]] <- Pixel_Inventory[[i]][-which(Pixel_Inventory[[i]]$Var1 == 
+                                                                0), ]
+        }
+        SumPix <- sum(Pixel_Inventory[[i]]$Freq)
+        if (SumPix < 25) {
+          message("Less than 25 pixels for validation plot")
+          if (length(Name_Plot) == nbPolygons) {
+            message(Name_Plot[ip])
+          }
+          message("Please consider applying a buffer")
+          message("We recommend at least 25 pixels per plot to compute diversity metrics")
+        }
+        ThreshElim <- pcelim * SumPix
+        ElimZeros <- which(Pixel_Inventory[[i]]$Freq < 
+                             ThreshElim)
+        if (length(ElimZeros) >= 1) {
+          Pixel_Inventory[[i]] <- Pixel_Inventory[[i]][-ElimZeros, 
+          ]
+        }
+        Alpha <- get_alpha_metrics(Pixel_Inventory[[i]]$Freq)
+        Richness.tmp[i] <- as.numeric(Alpha$Richness)
+        Fisher.tmp[i] <- Alpha$fisher
+        Shannon.tmp[i] <- Alpha$Shannon
+        Simpson.tmp[i] <- Alpha$Simpson
+      }
+      Richness.AllRep[[ip]] <- Richness.tmp
+      Shannon.AllRep[[ip]] <- Shannon.tmp
+      Fisher.AllRep[[ip]] <- Fisher.tmp
+      Simpson.AllRep[[ip]] <- Simpson.tmp
+      Richness <- rbind(Richness, mean(Richness.tmp), 
+                        row.names = NULL, col.names = NULL)
+      Fisher <- rbind(Fisher, mean(Fisher.tmp), row.names = NULL, 
+                      col.names = NULL)
+      Shannon <- rbind(Shannon, mean(Shannon.tmp), row.names = NULL, 
+                       col.names = NULL)
+      Simpson <- rbind(Simpson, mean(Simpson.tmp), row.names = NULL, 
+                       col.names = NULL)
+      Pixel_Inventory_All[[ip]] <- Pixel_Inventory
+      if (Hellinger == TRUE) {
+        for (i in 1:nbRepetitions) {
+          Pixel_Hellinger[[i]] <- Pixel_Inventory[[i]]
+          Pixel_Hellinger[[i]]$Freq <- sqrt(Pixel_Hellinger[[i]]$Freq/sum(Pixel_Hellinger[[i]]$Freq))
+        }
+        Pixel_Hellinger_All[[ip]] <- Pixel_Hellinger
+      }
+    }
+  }
+  Richness.AllRep <- do.call(rbind, Richness.AllRep)
+  Shannon.AllRep <- do.call(rbind, Shannon.AllRep)
+  Fisher.AllRep <- do.call(rbind, Fisher.AllRep)
+  Simpson.AllRep <- do.call(rbind, Simpson.AllRep)
+ 
+  BC <- list()
+  pb <- progress_bar$new(format = "computing beta diversity [:bar] :percent in :elapsed", 
+                         total = nbRepetitions, clear = FALSE, width = 100)
+  for (i in 1:nbRepetitions) {
+    pb$tick()
+    MergeDiversity <- matrix(0, nrow = nbclusters, ncol = nbPolygons)
+    for (j in 1:nbPolygons) {
+      if (nbRepetitions > 1) {
+        SelSpectralSpecies <- as.numeric(as.vector(Pixel_Inventory_All[[j]][[i]]$Var1))
+        SelFrequency <- Pixel_Inventory_All[[j]][[i]]$Freq
+      }
+      else {
+        SelSpectralSpecies <- as.numeric(as.vector(Pixel_Inventory_All[[j]][[i]]$ExtractIm))
+        SelFrequency <- Pixel_Inventory_All[[j]][[i]]$Freq
+      }
+      MergeDiversity[SelSpectralSpecies, j] = SelFrequency
+    }
+    BC[[i]] <- vegan::vegdist(t(MergeDiversity), method = "bray")
+  }
+  BC_mean <- 0 * BC[[1]]
+  for (i in 1:nbRepetitions) {
+    BC_mean <- BC_mean + BC[[i]]
+  }
+  Hellinger_mean <- Hellmat <- NULL
+  if (Hellinger == TRUE) {
+    Hellmat <- list()
+    for (i in 1:nbRepetitions) {
+      MergeDiversity <- matrix(0, nrow = nbclusters, ncol = nbPolygons)
+      for (j in 1:nbPolygons) {
+        SelSpectralSpecies <- as.numeric(as.vector(Pixel_Hellinger_All[[j]][[i]]$Var1))
+        SelFrequency <- Pixel_Hellinger_All[[j]][[i]]$Freq
+        MergeDiversity[SelSpectralSpecies, j] = SelFrequency
+      }
+      Hellmat[[i]] <- vegan::vegdist(t(MergeDiversity), 
+                                     method = "euclidean")
+    }
+    Hellinger_mean <- 0 * Hellmat[[1]]
+    for (i in 1:nbRepetitions) {
+      Hellinger_mean <- Hellinger_mean + Hellmat[[i]]
+    }
+    Hellinger_mean <- Hellinger_mean/nbRepetitions
+  }
+  BC_mean <- as.matrix(BC_mean/nbRepetitions)
+  names(Richness) <- "Richness"
+  names(Fisher) <- "Fisher"
+  names(Shannon) <- "Shannon"
+  names(Simpson) <- "Simpson"
+  return(list(Richness = Richness, Fisher = Fisher, Shannon = Shannon, 
+              Simpson = Simpson, fisher.All = Fisher.AllRep, Shannon.All = Shannon.AllRep, 
+              Simpson.All = Simpson.AllRep, 
+              BCdiss = BC_mean, BCdiss.All = BC, Hellinger = Hellinger_mean, 
+              Hellinger_ALL = Hellmat, Name_Plot = Name_Plot))
 }
 
