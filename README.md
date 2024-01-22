@@ -18,9 +18,11 @@ The next and also last step is to validate the calculation results based on the 
 
 1. Numpy
 2. Pandas
-3. GeoPandas
-4. Rasterio (and osgeo, which is currently mandatory in order that the "rasterio" package can be successfully imported.)
-5. Matplotlib
+3. Shapely
+4. GeoPandas
+5. Rasterio (and osgeo, which is currently mandatory in order that the "rasterio" package can be successfully imported.)
+6. Matplotlib
+7. Seaborn
 
 ## Required R Packages
 
