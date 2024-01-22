@@ -36,16 +36,20 @@ The next and also last step is to validate the calculation results based on the 
 ```
 root
 ├── FieldData
-│   ├── Sintesi_siti_ParcoTicino_con_specie.xlsx
-│   ├── fieldplots.shp
-│   ├── Shapefile
+│   ├── Shapefile (THE ORIGINAL SHAPEFILE OF TICINO PARK)
 │   │   ├──confini_foreste_finale.shp
-│   ├── ShapefileCorretti
+│   ├── ShapefileAggiunto (THE ADDITIONAL SHAPEFILE OF TICINO PARK WHICH ADDS SOME FOREST AREAS)
+│   │   ├──ticino_classification.shp
+│   ├── ShapefileCorretti (THE ORIGINAL SHAPEFILE OF TICINO PARK CORRECTED IN PYTHON)
 │   │   ├──confini_foreste_corretti.shp
-│   ├── ShapefileCorretti
-│   │   ├──confini_prova.shp
-│   ├── Scheda di Campo
-├── ProcessedData
+│   ├── ShapefileCorrettiAggiunto (THE FINAL MERGED CORRECTED SHAPEFILE OF TICINO PARK INCLUDING ALL THE ROI)
+│   │   ├──confini_foreste_estesi.shp
+├── PRISMA Classification Indices (THE STACKED VEGETATION INDICES RASTERS CREATED FROM PRISMA RASTERS)
+├── PRISMA Raster Mask (THE MASK RASTERS FOR PRISMA RASTERS)
+├── PRISMA Raster Raw (THE ORIGINAL PRISMA RASTERS)
+│   ├── Merged (MERGED PRISMA RASTERS)
+│   ├── Original (RAW PRISMA RASTERS)
+├── ProcessedData (SENTINEL-2 STACKED BAND DATA)
 │   ├── 2022 06
 │   │   ├──2022 06.hdr
 │   │   ├──2022 06Cropped.hdr
@@ -53,11 +57,12 @@ root
 │   ├── 2022 09
 ├── Python
 ├── R
-├── RawData
+├── RawData (SENTINEL-2 RAW DATA)
 │   ├── 2022 06
 │   ├── 2022 09
-├── Results
+├── Results (SENTINEL-2 BIODIVMAPR RESULTS)
 │   ├── 2022 06Cropped
 │   ├── 2022 09Cropped
+├── ResultsPRISMA (PRISMA BIODIVMAPR RESULTS)
 ```
 
