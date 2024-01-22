@@ -45,14 +45,26 @@ root
 │   ├── ShapefileCorrettiAggiunto (THE FINAL MERGED CORRECTED SHAPEFILE OF TICINO PARK INCLUDING ALL THE ROI)
 │   │   ├──confini_foreste_estesi.shp
 ├── PRISMA Classification Indices (THE STACKED VEGETATION INDICES RASTERS CREATED FROM PRISMA RASTERS)
+│   ├── Sel
+│   │   ├──PRS_L2D_STD_20220611_20220710_NS_mosaic_crop_smooth_v2i_StackedIndices_20VI.hdr
+│   │   ├──PRS_L2D_STD_20220906_20220911_NS_mosaic_crop_smooth_v2i_StackedIndices_20VI.hdr
+│   │   ├──PRS_L2D_STD_20220906_20220911_NS_mosaic_crop_smooth_v2i_new_StackedIndices_20VI.hdr
+│   ├── PRS_L2D_STD_20220611_20220710_NS_mosaic_crop_smooth_v2i Cropped.hdr
+│   ├── PRS_L2D_STD_20220611_20220710_NS_mosaic_crop_smooth_v2i_StackedIndices.hdr
+│   ├── PRS_L2D_STD_20220611_20220710_NS_mosaic_crop_smooth_v2i_StackedIndices_Cropped.hdr
+│   ├── ... ...
 ├── PRISMA Raster Mask (THE MASK RASTERS FOR PRISMA RASTERS)
 ├── PRISMA Raster Raw (THE ORIGINAL PRISMA RASTERS)
 │   ├── Merged (MERGED PRISMA RASTERS)
+│   │   ├──PRS_L2D_STD_20220611_20220710_NS_mosaic_crop_smooth_v2i.hdr
+│   │   ├──PRS_L2D_STD_20220906_20220911_NS_mosaic_crop_smooth_v2i.hdr
+│   │   ├──PRS_L2D_STD_20220906_20220911_NS_mosaic_crop_smooth_v2i_new.hdr
 │   ├── Original (RAW PRISMA RASTERS)
 ├── ProcessedData (SENTINEL-2 STACKED BAND DATA)
 │   ├── 2022 06
 │   │   ├──2022 06.hdr
 │   │   ├──2022 06Cropped.hdr
+│   │   ├──2022 06Cropped_StackedIndices_20VI.hdr
 │   │   ├──2022 06Mask.hdr
 │   ├── 2022 09
 ├── Python
@@ -62,7 +74,35 @@ root
 │   ├── 2022 09
 ├── Results (SENTINEL-2 BIODIVMAPR RESULTS)
 │   ├── 2022 06Cropped
+│   │   ├──SPCA
+│   │   │   ├──ALPHA
+│   │   │   ├──BETA
+│   │   │   ├──PCA
+│   │   │   ├──SpectralSpecies
+│   │   ├──AlphaDiversity50m.csv
+│   │   ├──AlphaDiversity100m.csv
+│   │   ├──AlphaDiversity150m.csv
+│   │   ├──AlphaDiversity300m.csv
+│   │   ├──BrayCurtis50m.csv
+│   │   ├──BrayCurtis100m.csv
+│   │   ├──BrayCurtis150m.csv
+│   │   ├──BrayCurtis300m.csv
+│   │   ├──PCA R.csv
 │   ├── 2022 09Cropped
+│   ├── ... ...
 ├── ResultsPRISMA (PRISMA BIODIVMAPR RESULTS)
+│   ├── PRS_L2D_STD_20220611_20220710_NS_mosaic_crop_smooth_v2i
+│   │   ├──SPCA
+│   │   │   ├──ALPHA
+│   │   │   ├──BETA
+│   │   │   ├──PCA
+│   │   │   ├──SpectralSpecies
+│   │   ├──AlphaDiversity150m.csv
+│   │   ├──AlphaDiversity300m.csv
+│   │   ├──BrayCurtis150m.csv
+│   │   ├──BrayCurtis300m.csv
+│   │   ├──PCA R.csv
+│   ├── PRS_L2D_STD_20220906_20220911_NS_mosaic_crop_smooth_v2i
+│   ├── PRS_L2D_STD_20220906_20220911_NS_mosaic_crop_smooth_v2i_new
 ```
 
