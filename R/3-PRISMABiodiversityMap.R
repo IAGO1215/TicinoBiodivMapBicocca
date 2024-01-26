@@ -1,5 +1,6 @@
 ### This R script is aimed at calculating the alpha and beta biodiversity indices from the PRISMA raster data ###
 ### The workflow is: import rasters and mask rasters -> calculate PCA and select PCs -> calculate spectral species -> calculate alpha and beta ###
+### Then the validation can be performed. Due to the low spatial resolution of PRISMA, we use 5 and 10 window size only. ###
 
 # Clean environment
 rm(list=ls(all=TRUE));gc()
@@ -51,7 +52,7 @@ typePCA <- 'SPCA'
 # Automatically set to FALSE if TypePCA     = 'MNF'
 filterPCA <- FALSE
 # window size forcomputation of spectral diversity
-window_size_PRISMA <- 5
+window_size_PRISMA <- c(5,10)
 # computational parameters
 nbCPU <- 4
 MaxRAM <- 0.2
@@ -129,28 +130,33 @@ print("----MAP ALPHA DIVERSITY----")
 Index_Alpha <- c('Shannon')
 
 for (x in 1:length(name_PRISMAMerged)){
-  biodivMapR::map_alpha_div(Input_Image_File = path_PRISMAMerged[[x]],
-                            Input_Mask_File = path_PRISMAMask[[x]],
-                            Output_Dir = outDir_PRISMA,
-                            TypePCA = typePCA,
-                            window_size = window_size_PRISMA,
-                            nbCPU = nbCPU,
-                            MaxRAM = MaxRAM,
-                            Index_Alpha = Index_Alpha,
-                            nbclusters = nbClusters_PRISMA)
-  print('Alpha diversity map generated!')
+  for (y in 1:length(window_size_PRISMA)){
+    biodivMapR::map_alpha_div(Input_Image_File = path_PRISMAMerged[[x]],
+                              Input_Mask_File = path_PRISMAMask[[x]],
+                              Output_Dir = outDir_PRISMA,
+                              TypePCA = typePCA,
+                              window_size = window_size_PRISMA[y],
+                              nbCPU = nbCPU,
+                              MaxRAM = MaxRAM,
+                              Index_Alpha = Index_Alpha,
+                              nbclusters = nbClusters_PRISMA)
+    print('Alpha diversity map generated!')
+  }
 }
 
 print("----MAP BETA DIVERSITY----")
 for (x in 1:length(name_PRISMAMerged)){
-  biodivMapR::map_beta_div(Input_Image_File = path_PRISMAMerged[[x]],
-                           Output_Dir = outDir_PRISMA,
-                           TypePCA = typePCA,
-                           window_size = window_size_PRISMA,
-                           nbCPU = nbCPU,
-                           MaxRAM = MaxRAM,
-                           nbclusters = nbClusters_PRISMA)
-  print('Beta diversity map generated!')
+  for (y in 1:length(window_size_PRISMA))
+  {
+    biodivMapR::map_beta_div(Input_Image_File = path_PRISMAMerged[[x]],
+                             Output_Dir = outDir_PRISMA,
+                             TypePCA = typePCA,
+                             window_size = window_size_PRISMA[y],
+                             nbCPU = nbCPU,
+                             MaxRAM = MaxRAM,
+                             nbclusters = nbClusters_PRISMA)
+    print('Beta diversity map generated!')
+  }
 }
 
 print("----BETA DIVERSITY COMPUTED----")
@@ -158,128 +164,53 @@ print("----BETA DIVERSITY COMPUTED----")
 ### Field Plot Biodiversity ###
 
 print("----FIELD PLOT STEP----")
-### 300m Buffer
 # Get the name for all the plot
 csv_Plot <- read.csv(file.path(path_abs,"FieldData","Field Dataset Merged","CSV","FieldDataMerged Valid UTM.csv"))
 list_Plot <- csv_Plot$Plot
 # location of the directory where shapefiles used for validation are saved
-vector_Dir_PRISMA <- file.path(path_abs,"FieldData","Field Dataset Merged","Shapefiles Buffered","FieldDataMerged Valid Buffer 300m UTM.shp")
+vector_Dir_PRISMA <- list()
+plot_res_PRISMA <- c(150,300)
+for (x in 1:length(plot_res_PRISMA)){
+  temp_Vector_Dir_PRISMA <- file.path(path_abs,"FieldData","Field Dataset Merged","Shapefiles Buffered",paste0("FieldDataMerged Valid Buffer ",plot_res_PRISMA[[x]],"m UTM.shp"))
+  vector_Dir_PRISMA <- append(vector_Dir_PRISMA,list(temp_Vector_Dir_PRISMA))
+  rm(temp_Vector_Dir_PRISMA)
+}
 # list vector data (In our case, there is only one shapefile, so alternatively we can directly input its abs path)
 # vector_Path <- biodivMapR::list_shp(vector_Dir)
 # vector_Name <- tools::file_path_sans_ext(basename(vector_Path))
 # Calculate those indices
-Biodiv_Indicators_PRISMA <- list()
+biodiv_Indicators_PRISMA <- list()
 for (x in 1:length(name_PRISMAMerged)){
-  Biodiv_Indicators_PRISMA_temp <- biodivMapR::diversity_from_plots(Raster_SpectralSpecies = list_spectral_PRISMA[[x]]$SpectralSpecies, 
-                                                               Plots = vector_Dir_PRISMA,
-                                                               nbclusters = nbClusters_PRISMA, 
-                                                               Raster_Functional = list_PCAPRISMA[[x]]$PCA_Files, 
-                                                               Selected_Features = pc_sel_PRISMA[[x]])
-  Biodiv_Indicators_PRISMA <- append(Biodiv_Indicators_PRISMA, list(Biodiv_Indicators_PRISMA_temp))
-  rm(Biodiv_Indicators_PRISMA_temp)
+  biodiv_Indicators_temp_List <- list()
+  for (y in 1:length(vector_Dir_PRISMA)){
+    biodiv_Indicators_temp <- diversity_from_plots_nofunc(Raster_SpectralSpecies = list_spectral_PRISMA[[x]]$SpectralSpecies, 
+                                                                 Plots = vector_Dir_PRISMA[[y]],
+                                                                 nbclusters = nbClusters_PRISMA, 
+                                                                 Raster_Functional = list_PCAPRISMA[[x]]$PCA_Files, 
+                                                                 Selected_Features = pc_sel_PRISMA[[x]])
+    biodiv_Indicators_temp_List <- append(biodiv_Indicators_temp_List, list(biodiv_Indicators_temp))
+    rm(biodiv_Indicators_temp)
+  }
+  biodiv_Indicators_PRISMA <- append(biodiv_Indicators_PRISMA, list(biodiv_Indicators_temp_List))
+  rm(biodiv_Indicators_temp_List)
 }
 # Save those indices to .csv files
 for (x in 1:length(name_PRISMAMerged)){
-  temp_Bio_PRISMA <- Biodiv_Indicators_PRISMA[[x]]
-  temp_Results_PRISMA <- data.frame(list_Plot, temp_Bio_PRISMA$Richness, temp_Bio_PRISMA$Fisher,
-                                    temp_Bio_PRISMA$Shannon, temp_Bio_PRISMA$Simpson,
-                                    temp_Bio_PRISMA$FunctionalDiversity$FRic,
-                                    temp_Bio_PRISMA$FunctionalDiversity$FEve,
-                                    temp_Bio_PRISMA$FunctionalDiversity$FDiv)
-  names(temp_Results_PRISMA)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson", "FRic", "FEve", "FDiv")
-  write.table(temp_Results_PRISMA, file = file.path(outDir_PRISMA,name_PRISMAMerged[[x]],"AlphaDiversity300m.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-  rm(temp_Bio_PRISMA,temp_Results_PRISMA)
+  for (y in 1:length(vector_Dir_PRISMA)){
+    temp_Bio_PRISMA <- biodiv_Indicators_PRISMA[[x]][[y]]
+    temp_Results_PRISMA <- data.frame(list_Plot, temp_Bio_PRISMA$Richness, temp_Bio_PRISMA$Fisher,
+                                      temp_Bio_PRISMA$Shannon, temp_Bio_PRISMA$Simpson)
+    names(temp_Results_PRISMA)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson")
+    write.table(temp_Results_PRISMA, file = file.path(outDir_PRISMA,name_PRISMAMerged[[x]],paste0("AlphaDiversity", plot_res_PRISMA[[y]], "m.csv")),
+                sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
+    rm(temp_Bio_PRISMA,temp_Results_PRISMA)
+  }
 }
 for (x in 1:length(name_PRISMAMerged)){
-  temp_BC_PRISMA <- Biodiv_Indicators_PRISMA[[x]]$BCdiss
-  write.table(temp_BC_PRISMA, file.path(outDir_PRISMA,name_PRISMAMerged[[x]],"BrayCurtis300m.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-  rm(temp_BC_PRISMA)
-}
-### 150m Buffer
-vector_Dir_PRISMA5 <- file.path(path_abs,"FieldData","Field Dataset Merged","Shapefiles Buffered","FieldDataMerged Valid Buffer 150m UTM.shp")
-# Calculate those indices
-Biodiv_Indicators_PRISMA5 <- list()
-for (x in 1:length(name_PRISMAMerged)){
-  Biodiv_Indicators_PRISMA_temp <- biodivMapR::diversity_from_plots(Raster_SpectralSpecies = list_spectral_PRISMA[[x]]$SpectralSpecies, 
-                                                                    Plots = vector_Dir_PRISMA5,
-                                                                    nbclusters = nbClusters_PRISMA, 
-                                                                    Raster_Functional = list_PCAPRISMA[[x]]$PCA_Files, 
-                                                                    Selected_Features = pc_sel_PRISMA[[x]])
-  Biodiv_Indicators_PRISMA5 <- append(Biodiv_Indicators_PRISMA5, list(Biodiv_Indicators_PRISMA_temp))
-  rm(Biodiv_Indicators_PRISMA_temp)
-}
-# Save those indices to .csv files
-for (x in 1:length(name_PRISMAMerged)){
-  temp_Bio_PRISMA <- Biodiv_Indicators_PRISMA5[[x]]
-  temp_Results_PRISMA <- data.frame(list_Plot, temp_Bio_PRISMA$Richness, temp_Bio_PRISMA$Fisher,
-                                    temp_Bio_PRISMA$Shannon, temp_Bio_PRISMA$Simpson,
-                                    temp_Bio_PRISMA$FunctionalDiversity$FRic,
-                                    temp_Bio_PRISMA$FunctionalDiversity$FEve,
-                                    temp_Bio_PRISMA$FunctionalDiversity$FDiv)
-  names(temp_Results_PRISMA)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson", "FRic", "FEve", "FDiv")
-  write.table(temp_Results_PRISMA, file = file.path(outDir_PRISMA,name_PRISMAMerged[[x]],"AlphaDiversity150m.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-  rm(temp_Bio_PRISMA,temp_Results_PRISMA)
-}
-for (x in 1:length(name_PRISMAMerged)){
-  temp_BC_PRISMA <- Biodiv_Indicators_PRISMA5[[x]]$BCdiss
-  write.table(temp_BC_PRISMA, file.path(outDir_PRISMA,name_PRISMAMerged[[x]],"BrayCurtis150m.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-  rm(temp_BC_PRISMA)
-}
-
-### Field Splot Biodiversity with 15 PCs Spectral Species###
-
-print("----FIELD PLOT STEP----")
-### 300m Buffer
-
-# Calculate those indices
-Biodiv_Indicators_PRISMA10_15 <- list()
-for (x in 1:length(name_PRISMAMerged)){
-  Biodiv_Indicators_PRISMA_temp <- diversity_from_plots_nofunc(Raster_SpectralSpecies = list_spectral_PRISMA_15[[x]]$SpectralSpecies, 
-                                                                    Plots = vector_Dir_PRISMA,
-                                                                    nbclusters = nbClusters_PRISMA, 
-                                                                    Raster_Functional = list_PCAPRISMA[[x]]$PCA_Files, 
-                                                                    Selected_Features = pc_sel_PRISMA15)
-  Biodiv_Indicators_PRISMA10_15 <- append(Biodiv_Indicators_PRISMA10_15, list(Biodiv_Indicators_PRISMA_temp))
-}
-# Save those indices to .csv files
-for (x in 1:length(name_PRISMAMerged)){
-  temp_Bio_PRISMA <- Biodiv_Indicators_PRISMA10_15[[x]]
-  temp_Results_PRISMA <- data.frame(list_Plot, temp_Bio_PRISMA$Richness, temp_Bio_PRISMA$Fisher,
-                                    temp_Bio_PRISMA$Shannon, temp_Bio_PRISMA$Simpson)
-  names(temp_Results_PRISMA)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson")
-  write.table(temp_Results_PRISMA, file = file.path(outDir_PRISMA,"15",name_PRISMAMerged[[x]],"AlphaDiversity10_15PCs.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-}
-for (x in 1:length(name_PRISMAMerged)){
-  temp_BC_PRISMA <- Biodiv_Indicators_PRISMA10_15[[x]]$BCdiss
-  write.table(temp_BC_PRISMA, file.path(outDir_PRISMA,"15",name_PRISMAMerged[[x]],"BrayCurtis10_15PCs.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-}
-# Calculate those indices
-Biodiv_Indicators_PRISMA5_15 <- list()
-for (x in 1:length(name_PRISMAMerged)){
-  Biodiv_Indicators_PRISMA_temp <- diversity_from_plots_nofunc(Raster_SpectralSpecies = list_spectral_PRISMA_15[[x]]$SpectralSpecies, 
-                                                               Plots = vector_Dir_PRISMA5,
-                                                               nbclusters = nbClusters_PRISMA, 
-                                                               Raster_Functional = list_PCAPRISMA[[x]]$PCA_Files, 
-                                                               Selected_Features = pc_sel_PRISMA15)
-  Biodiv_Indicators_PRISMA5_15 <- append(Biodiv_Indicators_PRISMA5_15, list(Biodiv_Indicators_PRISMA_temp))
-}
-# Save those indices to .csv files
-for (x in 1:length(name_PRISMAMerged)){
-  temp_Bio_PRISMA <- Biodiv_Indicators_PRISMA5_15[[x]]
-  temp_Results_PRISMA <- data.frame(list_Plot, temp_Bio_PRISMA$Richness, temp_Bio_PRISMA$Fisher,
-                                    temp_Bio_PRISMA$Shannon, temp_Bio_PRISMA$Simpson)
-  names(temp_Results_PRISMA)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson")
-  write.table(temp_Results_PRISMA, file = file.path(outDir_PRISMA,"15",name_PRISMAMerged[[x]],"AlphaDiversity5_15PCs.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-}
-for (x in 1:length(name_PRISMAMerged)){
-  temp_BC_PRISMA <- Biodiv_Indicators_PRISMA5_15[[x]]$BCdiss
-  write.table(temp_BC_PRISMA, file.path(outDir_PRISMA,"15",name_PRISMAMerged[[x]],"BrayCurtis5_15PCs.csv"),
-              sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
+  for (y in 1:length(vector_Dir_PRISMA)){
+    temp_BC_PRISMA <- biodiv_Indicators_PRISMA[[x]][[y]]$BCdiss
+    write.table(temp_BC_PRISMA, file.path(outDir_PRISMA,name_PRISMAMerged[[x]],paste0("BrayCurtis",plot_res_PRISMA[[y]],"m.csv")),
+                sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
+    rm(temp_BC_PRISMA)
+  }
 }

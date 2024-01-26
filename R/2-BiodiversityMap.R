@@ -139,85 +139,62 @@ for (x in 1:length(subdir_Sentinel)){
 
 print("----BETA DIVERSITY COMPUTED----")
 
-### Field Plot Biodiversity ###
+#### Field Plot Biodiversity ####
 
-print("----FIELD PLOT STEP----")
+print("----READ FIELD PLOT SHP----")
 # Get the name for all the plot
 csv_Plot <- read.csv(file.path(path_abs,"FieldData","Field Dataset Merged","CSV","FieldDataMerged Valid UTM.csv"))
 list_Plot <- csv_Plot$Plot
 # location of the directory where shapefiles used for validation are saved
-vector_Dir <- file.path(path_abs,"FieldData","Field Dataset Merged","Shapefiles Buffered","FieldDataMerged Valid Buffer 50m UTM.shp")
-# list vector data (In our case, there is only one shapefile, so alternatively we can directly input its abs path)
-# vector_Path <- biodivMapR::list_shp(vector_Dir)
-# vector_Name <- tools::file_path_sans_ext(basename(vector_Path))
+vector_Dir_Sentinel <- list()
+plot_res_Sentinel <- c(50,100,150,300)
+for (x in 1:length(plot_res_Sentinel)){
+  temp_Vector_Dir_Sentinel <- file.path(path_abs,"FieldData","Field Dataset Merged","Shapefiles Buffered",paste0("FieldDataMerged Valid Buffer ",plot_res_Sentinel[[x]],"m UTM.shp"))
+  vector_Dir_Sentinel <- append(vector_Dir_Sentinel,list(temp_Vector_Dir_Sentinel))
+  rm(temp_Vector_Dir_Sentinel)
+  }
+print("----READ FIELD PLOT SHP DONE----")
+
+### Calculate Plot Biodiversity ###
 # Calculate those indices
-Biodiv_Indicators <- list()
-for (x in 1:length(list_spectral)){
-  Biodiv_Indicators_temp_List <- list()
-  for (y in 1:length(nbClusters)){
-    Biodiv_Indicators_temp <- biodivMapR::diversity_from_plots(Raster_SpectralSpecies = list_spectral[[x]][[y]]$SpectralSpecies, 
-                                                          Plots = vector_Dir,
-                                                          nbclusters = nbClusters[[y]], 
-                                                          Raster_Functional = list_PCA[[x]]$PCA_Files, 
-                                                          Selected_Features = selected_PCs)
-    Biodiv_Indicators_temp_List <- append(Biodiv_Indicators_temp_List, list(Biodiv_Indicators_temp))
+biodiv_Indicators_Sentinel <- list()
+for (x in 1:length(subdir_Sentinel)){
+  biodiv_Indicators_temp_List <- list()
+  for (y in 1:length(vector_Dir_Sentinel)){
+    biodiv_Indicators_temp <- diversity_from_plots_nofunc(Raster_SpectralSpecies = list_spectral_Sentinel[[x]]$SpectralSpecies, 
+                                                          Plots = vector_Dir_Sentinel[[y]],
+                                                          nbclusters = nbClusters_Sentinel, 
+                                                          Raster_Functional = list_PCASentinel[[x]]$PCA_Files, 
+                                                          Selected_Features = pc_sel_Sentinel)
+    biodiv_Indicators_temp_List <- append(biodiv_Indicators_temp_List, list(biodiv_Indicators_temp))
+    rm(biodiv_Indicators_temp)
   }
-  Biodiv_Indicators <- append(Biodiv_Indicators, list(Biodiv_Indicators_temp_List))
+  biodiv_Indicators_Sentinel <- append(biodiv_Indicators_Sentinel, list(biodiv_Indicators_temp_List))
+  rm(biodiv_Indicators_temp_List)
 }
 # Save those indices to .csv files
-for (x in 1:length(list_spectral)){
-  for (y in 1:length(nbClusters)){
-    temp_Bio <- Biodiv_Indicators[[x]][[y]]
+print("----SAVING ALPHA BIODIVERSITY INDICES----")
+for (x in 1:length(subdir_Sentinel)){
+  for (y in 1:length(vector_Dir_Sentinel)){
+    temp_Bio <- biodiv_Indicators_Sentinel[[x]][[y]]
     temp_Results <- data.frame(list_Plot, temp_Bio$Richness, temp_Bio$Fisher,
-                          temp_Bio$Shannon, temp_Bio$Simpson,
-                          temp_Bio$FunctionalDiversity$FRic,
-                          temp_Bio$FunctionalDiversity$FEve,
-                          temp_Bio$FunctionalDiversity$FDiv)
-    names(temp_Results)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson", "FRic", "FEve", "FDiv")
-    write.table(temp_Results, file = file.path(output_Path_Cluster[[y]],basename(path_raster[[x]]),"AlphaDiversity.csv"),
+                          temp_Bio$Shannon, temp_Bio$Simpson)
+    names(temp_Results)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson")
+    write.table(temp_Results, file = file.path(outDir_Sentinel,name_Sentinel[[x]],paste0("AlphaDiversity",plot_res_Sentinel[[y]],"m.csv")),
                 sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
+    rm(temp_Bio,temp_Results)
   }
 }
-for (x in 1:length(list_spectral)){
-  for (y in 1:length(nbClusters)){
-    temp_BC <- Biodiv_Indicators[[x]][[y]]$BCdiss
-    write.table(temp_BC, file.path(output_Path_Cluster[[y]],basename(path_raster[[x]]),"BrayCurtis.csv"),
+print("----SAVED ALPHA BIODIVERSITY INDICES----")
+print("----SAVING BETA BIODIVERSITY INDICES----")
+for (x in 1:length(subdir_Sentinel)){
+  for (y in 1:length(vector_Dir_Sentinel)){
+    temp_BC <- biodiv_Indicators_Sentinel[[x]][[y]]$BCdiss
+    write.table(temp_BC, file.path(outDir_Sentinel,name_Sentinel[[x]],paste0("BrayCurtis",plot_res_Sentinel[[y]],"m.csv")),
                 sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
+    rm(temp_BC)
   }
 }
-# 10x10 plot
-vector_Dir_10 <- file.path(path_abs,"FieldData","Field Dataset Merged","Shapefiles Buffered","FieldDataMerged Valid Buffer 100m UTM.shp")
-Biodiv_Indicators_10 <- list()
-for (x in 1:length(list_spectral)){
-  Biodiv_Indicators_temp_List <- list()
-  for (y in 1:length(nbClusters)){
-    Biodiv_Indicators_temp <- biodivMapR::diversity_from_plots(Raster_SpectralSpecies = list_spectral[[x]][[y]]$SpectralSpecies, 
-                                                               Plots = vector_Dir_10,
-                                                               nbclusters = nbClusters[[y]], 
-                                                               Raster_Functional = list_PCA[[x]]$PCA_Files, 
-                                                               Selected_Features = selected_PCs)
-    Biodiv_Indicators_temp_List <- append(Biodiv_Indicators_temp_List, list(Biodiv_Indicators_temp))
-  }
-  Biodiv_Indicators_10 <- append(Biodiv_Indicators_10, list(Biodiv_Indicators_temp_List))
-}
-# Save those indices to .csv files
-for (x in 1:length(list_spectral)){
-  for (y in 1:length(nbClusters)){
-    temp_Bio <- Biodiv_Indicators_10[[x]][[y]]
-    temp_Results <- data.frame(list_Plot, temp_Bio$Richness, temp_Bio$Fisher,
-                               temp_Bio$Shannon, temp_Bio$Simpson,
-                               temp_Bio$FunctionalDiversity$FRic,
-                               temp_Bio$FunctionalDiversity$FEve,
-                               temp_Bio$FunctionalDiversity$FDiv)
-    names(temp_Results)  = c("Plot","Species_Richness", "Fisher", "Shannon", "Simpson", "FRic", "FEve", "FDiv")
-    write.table(temp_Results, file = file.path(output_Path_Cluster[[y]],basename(path_raster[[x]]),"AlphaDiversity10.csv"),
-                sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-  }
-}
-for (x in 1:length(list_spectral)){
-  for (y in 1:length(nbClusters)){
-    temp_BC <- Biodiv_Indicators_10[[x]][[y]]$BCdiss
-    write.table(temp_BC, file.path(output_Path_Cluster[[y]],basename(path_raster[[x]]),"BrayCurtis10.csv"),
-                sep="\t", dec=".", na=" ", row.names = F, col.names= T,quote=FALSE)
-  }
-}
+print("----SAVED BETA BIODIVERSITY INDICES----")
+
+rm(x,y)
